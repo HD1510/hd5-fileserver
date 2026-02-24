@@ -1,0 +1,155 @@
+<x-app-layout>
+    <x-slot name="header">
+        <div class="flex items-center justify-between w-full">
+            <div>
+                <x-breadcrumb :crumbs="$breadcrumbs" />
+                <h2 class="font-semibold text-xl text-gray-800 mt-1">{{ $folder->name }}</h2>
+            </div>
+            <div class="flex items-center gap-3">
+                <form method="POST" action="{{ route('folders.store') }}" class="flex items-center gap-2">
+                    @csrf
+                    <input type="hidden" name="parent_id" value="{{ $folder->id }}">
+                    <input type="text" name="name" placeholder="New subfolder" required
+                        class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-blue-500 focus:border-blue-500">
+                    <button type="submit" class="px-3 py-1.5 bg-gray-800 text-white text-sm rounded-lg hover:bg-gray-700">
+                        + Folder
+                    </button>
+                </form>
+            </div>
+        </div>
+    </x-slot>
+
+    {{-- Upload Zone --}}
+    <div id="drop-zone" class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center mb-6 hover:border-blue-400 transition-colors cursor-pointer bg-white"
+        ondragover="event.preventDefault(); this.classList.add('border-blue-500','bg-blue-50')"
+        ondragleave="this.classList.remove('border-blue-500','bg-blue-50')"
+        ondrop="handleDrop(event)"
+        onclick="document.getElementById('file-input').click()">
+        <input type="file" id="file-input" multiple class="hidden" onchange="uploadFiles(this.files)">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-10 h-10 text-gray-400 mx-auto mb-3">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+        </svg>
+        <p class="text-gray-600 font-medium">Drop files here or click to upload</p>
+        <div id="upload-progress" class="hidden mt-3 text-sm text-blue-600">Uploading...</div>
+    </div>
+
+    {{-- Sub-Folders --}}
+    @if($folders->isNotEmpty())
+        <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">Folders</h3>
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 mb-6">
+            @foreach($folders as $subfolder)
+                <div class="group bg-white rounded-xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-shadow">
+                    <a href="{{ route('folders.show', $subfolder) }}" class="block">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-10 h-10 text-yellow-400 mx-auto mb-2">
+                            <path d="M19.5 21a3 3 0 0 0 3-3v-4.5a3 3 0 0 0-3-3h-15a3 3 0 0 0-3 3V18a3 3 0 0 0 3 3h15ZM1.5 10.146V6a3 3 0 0 1 3-3h5.379a2.25 2.25 0 0 1 1.59.659l2.122 2.121c.14.141.331.22.53.22H19.5a3 3 0 0 1 3 3v1.146A4.483 4.483 0 0 0 19.5 12h-15a4.483 4.483 0 0 0-3 1.146Z" />
+                        </svg>
+                        <p class="text-sm text-gray-700 text-center truncate">{{ $subfolder->name }}</p>
+                    </a>
+                    <div class="flex justify-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <form method="POST" action="{{ route('folders.update', $subfolder) }}" class="inline" onsubmit="return promptRename(event, '{{ addslashes($subfolder->name) }}')">
+                            @csrf @method('PATCH')
+                            <input type="hidden" name="name" class="rename-input">
+                            <button type="submit" class="text-xs text-gray-500 hover:text-blue-600">Rename</button>
+                        </form>
+                        <span class="text-gray-300">|</span>
+                        <x-share-modal :folderId="$subfolder->id" :modalId="'share-folder-'.$subfolder->id" />
+                        <span class="text-gray-300">|</span>
+                        <form method="POST" action="{{ route('folders.destroy', $subfolder) }}" onsubmit="return confirm('Delete folder and all contents?')">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="text-xs text-red-500 hover:text-red-700">Delete</button>
+                        </form>
+                    </div>
+                </div>
+            @endforeach
+        </div>
+    @endif
+
+    {{-- Files --}}
+    @if($files->isNotEmpty())
+        <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">Files</h3>
+        <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 border-b border-gray-100">
+                    <tr class="text-left text-gray-500">
+                        <th class="px-4 py-3 font-medium">Name</th>
+                        <th class="px-4 py-3 font-medium hidden sm:table-cell">Size</th>
+                        <th class="px-4 py-3 font-medium hidden md:table-cell">Uploaded</th>
+                        <th class="px-4 py-3 font-medium text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    @foreach($files as $file)
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-4 py-3">
+                                <div class="flex items-center gap-2">
+                                    <x-file-icon :file="$file" class="w-5 h-5 text-gray-400 shrink-0" />
+                                    <span class="truncate max-w-xs">{{ $file->name }}</span>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3 text-gray-500 hidden sm:table-cell">{{ $file->sizeFormatted() }}</td>
+                            <td class="px-4 py-3 text-gray-500 hidden md:table-cell">{{ $file->created_at->diffForHumans() }}</td>
+                            <td class="px-4 py-3 text-right">
+                                <div class="flex items-center justify-end gap-3">
+                                    <a href="{{ route('files.download', $file) }}" class="text-blue-600 hover:text-blue-800">Download</a>
+                                    <x-share-modal :fileId="$file->id" :modalId="'share-file-'.$file->id" />
+                                    <form method="POST" action="{{ route('files.update', $file) }}" class="inline" onsubmit="return promptRename(event, '{{ addslashes($file->name) }}')">
+                                        @csrf @method('PATCH')
+                                        <input type="hidden" name="name" class="rename-input">
+                                        <button type="submit" class="text-xs text-gray-500 hover:text-blue-600">Rename</button>
+                                    </form>
+                                    <form method="POST" action="{{ route('files.destroy', $file) }}" onsubmit="return confirm('Delete this file?')">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" class="text-xs text-red-500 hover:text-red-700">Delete</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    @endif
+
+    @if($folders->isEmpty() && $files->isEmpty())
+        <div class="text-center py-16 text-gray-400">
+            <p class="text-lg font-medium">This folder is empty</p>
+            <p class="text-sm mt-1">Drop files above to upload.</p>
+        </div>
+    @endif
+
+    <script>
+    function promptRename(event, currentName) {
+        const newName = prompt('Rename to:', currentName);
+        if (!newName || newName === currentName) { event.preventDefault(); return false; }
+        event.target.querySelector('.rename-input').value = newName;
+        return true;
+    }
+
+    function handleDrop(event) {
+        event.preventDefault();
+        const zone = document.getElementById('drop-zone');
+        zone.classList.remove('border-blue-500', 'bg-blue-50');
+        uploadFiles(event.dataTransfer.files);
+    }
+
+    function uploadFiles(files) {
+        if (!files.length) return;
+        const progress = document.getElementById('upload-progress');
+        progress.classList.remove('hidden');
+        progress.textContent = 'Uploading ' + files.length + ' file(s)...';
+
+        const formData = new FormData();
+        for (const file of files) formData.append('files[]', file);
+        formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
+        formData.append('folder_id', '{{ $folder->id }}');
+
+        fetch('{{ route('files.upload') }}', { method: 'POST', body: formData })
+            .then(r => r.json())
+            .then(data => {
+                progress.textContent = data.uploaded.length + ' file(s) uploaded.';
+                setTimeout(() => location.reload(), 800);
+            })
+            .catch(() => { progress.textContent = 'Upload failed.'; });
+    }
+    </script>
+</x-app-layout>
