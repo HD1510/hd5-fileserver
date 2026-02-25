@@ -41,7 +41,15 @@
             </button>
         </div>
         <p class="text-gray-400 text-xs mt-3">Max 100 MB per file</p>
-        <div id="upload-progress" class="hidden mt-3 text-sm text-blue-600">Uploading...</div>
+        <div id="upload-status" class="hidden mt-4 px-2">
+            <div class="flex justify-between text-sm text-gray-600 mb-1">
+                <span id="upload-label">Uploading...</span>
+                <span id="upload-percent">0%</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2">
+                <div id="upload-bar" class="bg-blue-500 h-2 rounded-full transition-all duration-200" style="width: 0%"></div>
+            </div>
+        </div>
     </div>
 
     {{-- Folders --}}
@@ -147,24 +155,66 @@
 
     function uploadFiles(files, relativePaths = []) {
         if (!files.length) return;
-        const progress = document.getElementById('upload-progress');
-        progress.classList.remove('hidden');
-        progress.textContent = 'Uploading ' + files.length + ' file(s)...';
+
+        const status  = document.getElementById('upload-status');
+        const label   = document.getElementById('upload-label');
+        const percent = document.getElementById('upload-percent');
+        const bar     = document.getElementById('upload-bar');
+
+        status.classList.remove('hidden');
+        label.textContent = 'Uploading ' + files.length + ' file(s)...';
+        percent.textContent = '0%';
+        bar.style.width = '0%';
 
         const formData = new FormData();
         for (let i = 0; i < files.length; i++) {
             formData.append('files[]', files[i]);
-            formData.append('relative_paths[]', relativePaths[i] ?? '');
+            if (relativePaths[i]) formData.append('relative_paths[]', relativePaths[i]);
+            else formData.append('relative_paths[]', '');
         }
         formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
 
-        fetch('{{ route('files.upload') }}', { method: 'POST', body: formData })
-            .then(r => r.json())
-            .then(data => {
-                progress.textContent = data.uploaded.length + ' file(s) uploaded successfully.';
-                setTimeout(() => location.reload(), 800);
-            })
-            .catch(() => { progress.textContent = 'Upload failed. Please try again.'; });
+        const xhr = new XMLHttpRequest();
+
+        xhr.upload.onprogress = function(e) {
+            if (!e.lengthComputable) return;
+            const pct = Math.round((e.loaded / e.total) * 100);
+            bar.style.width = pct + '%';
+            percent.textContent = pct + '%';
+            if (pct === 100) label.textContent = 'Processing...';
+        };
+
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                try {
+                    const data = JSON.parse(xhr.responseText);
+                    label.textContent = data.uploaded.length + ' file(s) uploaded successfully.';
+                    bar.classList.replace('bg-blue-500', 'bg-green-500');
+                    setTimeout(() => location.reload(), 1000);
+                } catch(e) {
+                    label.textContent = 'Server error. Check logs.';
+                    bar.classList.replace('bg-blue-500', 'bg-red-500');
+                }
+            } else {
+                try {
+                    const data = JSON.parse(xhr.responseText);
+                    const msg = data.message || Object.values(data.errors || {}).flat().join(', ');
+                    label.textContent = 'Error: ' + msg;
+                } catch(e) {
+                    label.textContent = 'Upload failed (HTTP ' + xhr.status + ')';
+                }
+                bar.classList.replace('bg-blue-500', 'bg-red-500');
+            }
+        };
+
+        xhr.onerror = function() {
+            label.textContent = 'Network error. Please try again.';
+            bar.classList.replace('bg-blue-500', 'bg-red-500');
+        };
+
+        xhr.open('POST', '{{ route('files.upload') }}');
+        xhr.setRequestHeader('Accept', 'application/json');
+        xhr.send(formData);
     }
 
     function uploadFolder(files) {
