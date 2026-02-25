@@ -21,7 +21,7 @@
 
     {{-- Upload Zone --}}
     <div id="drop-zone" class="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center mb-6 bg-white hover:border-blue-400 transition-colors"
-        ondragover="event.preventDefault(); this.classList.add('border-blue-500','bg-blue-50')"
+        ondragover="if(event.dataTransfer.types.includes('Files')){event.preventDefault();this.classList.add('border-blue-500','bg-blue-50')}"
         ondragleave="this.classList.remove('border-blue-500','bg-blue-50')"
         ondrop="handleDrop(event)">
         <input type="file" id="file-input" multiple class="hidden" onchange="uploadFiles(this.files)">
@@ -57,7 +57,10 @@
         <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">Folders</h3>
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 mb-6">
             @foreach($folders as $folder)
-                <div class="group bg-white rounded-xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-shadow">
+                <div class="group bg-white rounded-xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-shadow"
+                    ondragover="folderDragOver(event)"
+                    ondragleave="folderDragLeave(event)"
+                    ondrop="folderDrop(event, {{ $folder->id }})">
                     <a href="{{ route('folders.show', $folder) }}" class="block">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-10 h-10 text-yellow-400 mx-auto mb-2">
                             <path d="M19.5 21a3 3 0 0 0 3-3v-4.5a3 3 0 0 0-3-3h-15a3 3 0 0 0-3 3V18a3 3 0 0 0 3 3h15ZM1.5 10.146V6a3 3 0 0 1 3-3h5.379a2.25 2.25 0 0 1 1.59.659l2.122 2.121c.14.141.331.22.53.22H19.5a3 3 0 0 1 3 3v1.146A4.483 4.483 0 0 0 19.5 12h-15a4.483 4.483 0 0 0-3 1.146Z" />
@@ -98,7 +101,9 @@
                 </thead>
                 <tbody class="divide-y divide-gray-50">
                     @foreach($files as $file)
-                        <tr class="hover:bg-gray-50 group">
+                        <tr class="hover:bg-gray-50 group cursor-grab" draggable="true"
+                            ondragstart="fileDragStart(event, {{ $file->id }})"
+                            ondragend="this.classList.remove('opacity-40')">
                             <td class="px-4 py-3">
                                 <div class="flex items-center gap-2">
                                     <x-file-icon :file="$file" class="w-5 h-5 text-gray-400 shrink-0" />
@@ -223,6 +228,39 @@
         if (!files.length) return;
         const relativePaths = Array.from(files).map(f => f.webkitRelativePath);
         uploadFiles(files, relativePaths);
+    }
+
+    function fileDragStart(event, fileId) {
+        event.dataTransfer.setData('application/fileid', fileId);
+        event.dataTransfer.effectAllowed = 'move';
+        event.currentTarget.classList.add('opacity-40');
+    }
+
+    function folderDragOver(event) {
+        if (!event.dataTransfer.types.includes('application/fileid')) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+        event.currentTarget.classList.add('ring-2', 'ring-blue-400', 'bg-blue-50');
+    }
+
+    function folderDragLeave(event) {
+        event.currentTarget.classList.remove('ring-2', 'ring-blue-400', 'bg-blue-50');
+    }
+
+    function folderDrop(event, folderId) {
+        event.preventDefault();
+        event.currentTarget.classList.remove('ring-2', 'ring-blue-400', 'bg-blue-50');
+        const fileId = event.dataTransfer.getData('application/fileid');
+        if (!fileId) return;
+        fetch(`/files/${fileId}/move`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({ folder_id: folderId }),
+        }).then(r => { if (r.ok || r.redirected) location.reload(); });
     }
     </script>
 </x-app-layout>
