@@ -17,12 +17,13 @@
             <p class="text-3xl font-bold text-gray-800 mt-1">{{ $stats['share_count'] }}</p>
         </div>
         <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
-            <p class="text-sm text-gray-500">Storage Used</p>
-            <p class="text-2xl font-bold text-gray-800 mt-1">{{ $stats['storage_used_formatted'] }}</p>
+            <p class="text-sm text-gray-500">Server Storage</p>
+            <p class="text-2xl font-bold text-gray-800 mt-1">{{ $stats['disk_used_fmt'] }}</p>
             <div class="mt-2 bg-gray-200 rounded-full h-1.5">
-                <div class="bg-blue-500 h-1.5 rounded-full" style="width: {{ $stats['storage_percent'] }}%"></div>
+                @php $color = $stats['disk_percent'] >= 90 ? 'bg-red-500' : ($stats['disk_percent'] >= 70 ? 'bg-yellow-500' : 'bg-blue-500'); @endphp
+                <div class="{{ $color }} h-1.5 rounded-full" style="width: {{ $stats['disk_percent'] }}%"></div>
             </div>
-            <p class="text-xs text-gray-400 mt-1">of {{ $stats['storage_quota_formatted'] }} ({{ $stats['storage_percent'] }}%)</p>
+            <p class="text-xs text-gray-400 mt-1">of {{ $stats['disk_total_fmt'] }} &bull; {{ $stats['disk_free_fmt'] }} free ({{ $stats['disk_percent'] }}%)</p>
         </div>
     </div>
 
