@@ -20,17 +20,27 @@
     </x-slot>
 
     {{-- Upload Zone --}}
-    <div id="drop-zone" class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center mb-6 hover:border-blue-400 transition-colors cursor-pointer bg-white"
+    <div id="drop-zone" class="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center mb-6 bg-white hover:border-blue-400 transition-colors"
         ondragover="event.preventDefault(); this.classList.add('border-blue-500','bg-blue-50')"
         ondragleave="this.classList.remove('border-blue-500','bg-blue-50')"
-        ondrop="handleDrop(event)"
-        onclick="document.getElementById('file-input').click()">
-        <input type="file" id="file-input" name="files[]" multiple class="hidden" onchange="uploadFiles(this.files)">
+        ondrop="handleDrop(event)">
+        <input type="file" id="file-input" multiple class="hidden" onchange="uploadFiles(this.files)">
+        <input type="file" id="folder-input" webkitdirectory multiple class="hidden" onchange="uploadFolder(this.files)">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-10 h-10 text-gray-400 mx-auto mb-3">
             <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
         </svg>
-        <p class="text-gray-600 font-medium">Drop files here or click to upload</p>
-        <p class="text-gray-400 text-sm mt-1">Max 100 MB per file</p>
+        <p class="text-gray-600 font-medium mb-3">Drop files here or choose an option below</p>
+        <div class="flex items-center justify-center gap-3">
+            <button type="button" onclick="document.getElementById('file-input').click()"
+                class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
+                Upload Files
+            </button>
+            <button type="button" onclick="document.getElementById('folder-input').click()"
+                class="px-4 py-2 bg-white text-gray-700 text-sm rounded-lg border border-gray-300 hover:bg-gray-50">
+                Upload Folder
+            </button>
+        </div>
+        <p class="text-gray-400 text-xs mt-3">Max 100 MB per file</p>
         <div id="upload-progress" class="hidden mt-3 text-sm text-blue-600">Uploading...</div>
     </div>
 
@@ -131,19 +141,21 @@
 
     function handleDrop(event) {
         event.preventDefault();
-        const zone = document.getElementById('drop-zone');
-        zone.classList.remove('border-blue-500', 'bg-blue-50');
+        document.getElementById('drop-zone').classList.remove('border-blue-500', 'bg-blue-50');
         uploadFiles(event.dataTransfer.files);
     }
 
-    function uploadFiles(files) {
+    function uploadFiles(files, relativePaths = []) {
         if (!files.length) return;
         const progress = document.getElementById('upload-progress');
         progress.classList.remove('hidden');
         progress.textContent = 'Uploading ' + files.length + ' file(s)...';
 
         const formData = new FormData();
-        for (const file of files) formData.append('files[]', file);
+        for (let i = 0; i < files.length; i++) {
+            formData.append('files[]', files[i]);
+            formData.append('relative_paths[]', relativePaths[i] ?? '');
+        }
         formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
 
         fetch('{{ route('files.upload') }}', { method: 'POST', body: formData })
@@ -152,9 +164,13 @@
                 progress.textContent = data.uploaded.length + ' file(s) uploaded successfully.';
                 setTimeout(() => location.reload(), 800);
             })
-            .catch(() => {
-                progress.textContent = 'Upload failed. Please try again.';
-            });
+            .catch(() => { progress.textContent = 'Upload failed. Please try again.'; });
+    }
+
+    function uploadFolder(files) {
+        if (!files.length) return;
+        const relativePaths = Array.from(files).map(f => f.webkitRelativePath);
+        uploadFiles(files, relativePaths);
     }
     </script>
 </x-app-layout>
