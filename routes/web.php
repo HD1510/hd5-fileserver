@@ -38,6 +38,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // File management
     Route::post('/files/upload', [FileController::class, 'upload'])->name('files.upload');
+    Route::get('/files/{file}/preview', [FileController::class, 'preview'])->name('files.preview');
     Route::get('/files/{file}/download', [FileController::class, 'download'])->name('files.download');
     Route::patch('/files/{file}', [FileController::class, 'update'])->name('files.update');
     Route::patch('/files/{file}/move', [FileController::class, 'move'])->name('files.move');

@@ -58,5 +58,6 @@
                 {{ $slot }}
             </main>
         </div>
+        <x-preview-modal />
     </body>
 </html>

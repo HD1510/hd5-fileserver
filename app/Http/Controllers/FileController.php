@@ -109,6 +109,19 @@ class FileController extends Controller
         return $current;
     }
 
+    public function preview(File $file)
+    {
+        $this->authorize('download', $file);
+
+        if (!Storage::disk('uploads')->exists($file->disk_path)) {
+            abort(404, 'File not found on disk.');
+        }
+
+        return Storage::disk('uploads')->response($file->disk_path, $file->name, [
+            'Content-Type' => $file->mime_type ?? 'application/octet-stream',
+        ]);
+    }
+
     public function download(File $file)
     {
         $this->authorize('download', $file);

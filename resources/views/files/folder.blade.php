@@ -109,7 +109,9 @@
                             <td class="px-4 py-3 text-gray-500 hidden md:table-cell">{{ $file->created_at->diffForHumans() }}</td>
                             <td class="px-4 py-3 text-right">
                                 <div class="flex items-center justify-end gap-3">
-                                    <a href="{{ route('files.download', $file) }}" class="text-blue-600 hover:text-blue-800">Download</a>
+                                    <button type="button" class="text-xs text-gray-500 hover:text-purple-600"
+                                        onclick="window.dispatchEvent(new CustomEvent('open-preview', {detail: {url: '{{ route('files.preview', $file) }}', name: '{{ addslashes($file->name) }}', mime: '{{ $file->mime_type }}', size: '{{ $file->sizeFormatted() }}'}}))">Preview</button>
+                                    <a href="{{ route('files.download', $file) }}" class="text-blue-600 hover:text-blue-800 text-xs">Download</a>
                                     <x-share-modal :fileId="$file->id" :modalId="'share-file-'.$file->id" />
                                     <form method="POST" action="{{ route('files.update', $file) }}" class="inline" onsubmit="return promptRename(event, '{{ addslashes($file->name) }}')">
                                         @csrf @method('PATCH')
