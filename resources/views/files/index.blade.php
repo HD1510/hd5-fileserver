@@ -259,7 +259,7 @@
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                 'Accept': 'application/json',
             },
-            body: JSON.stringify({ folder_id: folderId }),
+            body: JSON.stringify({ folder_id: folderId ?? null }),
         }).then(r => { if (r.ok || r.redirected) location.reload(); });
     }
     </script>
