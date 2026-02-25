@@ -25,6 +25,7 @@ class UserController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'username' => ['required', 'string', 'max:255', 'unique:users,username', 'regex:/^[a-zA-Z0-9_\-]+$/'],
             'email' => ['required', 'email', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'is_admin' => ['boolean'],
@@ -33,6 +34,7 @@ class UserController extends Controller
 
         User::create([
             'name' => $data['name'],
+            'username' => $data['username'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
             'is_admin' => $data['is_admin'] ?? false,
@@ -51,6 +53,7 @@ class UserController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'username' => ['required', 'string', 'max:255', 'unique:users,username,' . $user->id, 'regex:/^[a-zA-Z0-9_\-]+$/'],
             'email' => ['required', 'email', 'unique:users,email,' . $user->id],
             'password' => ['nullable', 'string', 'min:8', 'confirmed'],
             'is_admin' => ['boolean'],
@@ -59,6 +62,7 @@ class UserController extends Controller
 
         $updateData = [
             'name' => $data['name'],
+            'username' => $data['username'],
             'email' => $data['email'],
             'is_admin' => $data['is_admin'] ?? false,
             'storage_quota' => $data['storage_quota_gb'] * 1024 * 1024 * 1024,

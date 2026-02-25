@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
             ['email' => 'admin@fileserver.hd5.at'],
             [
                 'name' => 'Admin',
+                'username' => 'admin',
                 'password' => Hash::make('changeme123'),
                 'is_admin' => true,
                 'storage_quota' => 100 * 1024 * 1024 * 1024, // 100 GB
