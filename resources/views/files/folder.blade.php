@@ -6,6 +6,13 @@
                 <h2 class="font-semibold text-xl text-gray-800 mt-1">{{ $folder->name }}</h2>
             </div>
             <div class="flex items-center gap-3">
+                <a href="{{ route('folders.download', $folder) }}"
+                    class="px-3 py-1.5 bg-white text-gray-700 text-sm rounded-lg border border-gray-300 hover:bg-gray-50 flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                    </svg>
+                    Download ZIP
+                </a>
                 <form method="POST" action="{{ route('folders.store') }}" class="flex items-center gap-2">
                     @csrf
                     <input type="hidden" name="parent_id" value="{{ $folder->id }}">
@@ -58,9 +65,12 @@
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 mb-6">
             @foreach($folders as $subfolder)
                 <div class="group bg-white rounded-xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-shadow"
+                    draggable="true"
+                    ondragstart="folderItemDragStart(event, {{ $subfolder->id }})"
+                    ondragend="folderItemDragEnd(event)"
                     ondragover="folderDragOver(event)"
                     ondragleave="folderDragLeave(event)"
-                    ondrop="folderDrop(event, {{ $subfolder->id }})">
+                    ondrop="anyDrop(event, {{ $subfolder->id }})">
                     <a href="{{ route('folders.show', $subfolder) }}" class="block">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-10 h-10 text-yellow-400 mx-auto mb-2">
                             <path d="M19.5 21a3 3 0 0 0 3-3v-4.5a3 3 0 0 0-3-3h-15a3 3 0 0 0-3 3V18a3 3 0 0 0 3 3h15ZM1.5 10.146V6a3 3 0 0 1 3-3h5.379a2.25 2.25 0 0 1 1.59.659l2.122 2.121c.14.141.331.22.53.22H19.5a3 3 0 0 1 3 3v1.146A4.483 4.483 0 0 0 19.5 12h-15a4.483 4.483 0 0 0-3 1.146Z" />
@@ -88,14 +98,28 @@
 
     {{-- Files --}}
     @if($files->isNotEmpty())
+        @php
+            $baseUrl = route('folders.show', $folder);
+            $flipDir = $sortDir === 'asc' ? 'desc' : 'asc';
+            $sortArrow = fn($col) => $sortCol === $col ? ($sortDir === 'asc' ? ' ↑' : ' ↓') : '';
+        @endphp
         <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-3">Files</h3>
-        <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden" x-data="bulkSelect()">
             <table class="w-full text-sm">
                 <thead class="bg-gray-50 border-b border-gray-100">
                     <tr class="text-left text-gray-500">
-                        <th class="px-4 py-3 font-medium">Name</th>
-                        <th class="px-4 py-3 font-medium hidden sm:table-cell">Size</th>
-                        <th class="px-4 py-3 font-medium hidden md:table-cell">Uploaded</th>
+                        <th class="px-4 py-3 w-8">
+                            <input type="checkbox" class="rounded" @change="toggleAll($event.target.checked)" x-bind:checked="allSelected">
+                        </th>
+                        <th class="px-4 py-3 font-medium">
+                            <a href="{{ $baseUrl }}?sort=name&dir={{ $sortCol === 'name' ? $flipDir : 'asc' }}" class="hover:text-gray-700">Name{{ $sortArrow('name') }}</a>
+                        </th>
+                        <th class="px-4 py-3 font-medium hidden sm:table-cell">
+                            <a href="{{ $baseUrl }}?sort=size&dir={{ $sortCol === 'size' ? $flipDir : 'asc' }}" class="hover:text-gray-700">Size{{ $sortArrow('size') }}</a>
+                        </th>
+                        <th class="px-4 py-3 font-medium hidden md:table-cell">
+                            <a href="{{ $baseUrl }}?sort=created_at&dir={{ $sortCol === 'created_at' ? $flipDir : 'desc' }}" class="hover:text-gray-700">Uploaded{{ $sortArrow('created_at') }}</a>
+                        </th>
                         <th class="px-4 py-3 font-medium text-right">Actions</th>
                     </tr>
                 </thead>
@@ -103,11 +127,20 @@
                     @foreach($files as $file)
                         <tr class="hover:bg-gray-50 cursor-grab" draggable="true"
                             ondragstart="fileDragStart(event, {{ $file->id }})"
-                            ondragend="this.classList.remove('opacity-40')">
+                            ondragend="this.classList.remove('opacity-40')"
+                            :class="selected.includes({{ $file->id }}) ? 'bg-blue-50' : ''">
+                            <td class="px-4 py-3">
+                                <input type="checkbox" class="rounded" value="{{ $file->id }}"
+                                    @change="toggle({{ $file->id }})"
+                                    :checked="selected.includes({{ $file->id }})">
+                            </td>
                             <td class="px-4 py-3">
                                 <div class="flex items-center gap-2">
                                     <x-file-icon :file="$file" class="w-5 h-5 text-gray-400 shrink-0" />
-                                    <span class="truncate max-w-xs">{{ $file->name }}</span>
+                                    <button type="button" class="truncate max-w-xs text-left hover:text-blue-600"
+                                        @click="window.dispatchEvent(new CustomEvent('open-detail', {detail: {id: {{ $file->id }}, name: '{{ addslashes($file->name) }}', size: '{{ $file->sizeFormatted() }}', mime: '{{ $file->mime_type }}', date: '{{ $file->created_at->format('Y-m-d H:i') }}', folder: '{{ addslashes($folder->name) }}', previewUrl: '{{ route('files.preview', $file) }}', downloadUrl: '{{ route('files.download', $file) }}'}}))">
+                                        {{ $file->name }}
+                                    </button>
                                 </div>
                             </td>
                             <td class="px-4 py-3 text-gray-500 hidden sm:table-cell">{{ $file->sizeFormatted() }}</td>
@@ -133,6 +166,35 @@
                     @endforeach
                 </tbody>
             </table>
+
+            {{-- Bulk Action Bar --}}
+            <div x-show="selected.length > 0" x-cloak
+                class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-gray-900 text-white rounded-xl shadow-2xl px-5 py-3 flex items-center gap-4 text-sm">
+                <span x-text="selected.length + ' file(s) selected'"></span>
+                <button type="button" @click="bulkDelete('{{ route('files.bulk-delete') }}')"
+                    class="bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded-lg text-xs font-medium">
+                    Delete
+                </button>
+                <div class="relative" x-data="{ open: false }">
+                    <button type="button" @click="open = !open"
+                        class="bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1">
+                        Move to… <span>▾</span>
+                    </button>
+                    <div x-show="open" @click.outside="open = false" x-cloak
+                        class="absolute bottom-full mb-2 left-0 bg-white text-gray-800 rounded-xl border border-gray-200 shadow-xl min-w-40 py-1 max-h-48 overflow-y-auto">
+                        <button type="button" @click="bulkMove('{{ route('files.bulk-move') }}', null); open = false"
+                            class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm">Root</button>
+                        @foreach(auth()->user()->folders()->orderBy('name')->get() as $f)
+                            <button type="button"
+                                @click="bulkMove('{{ route('files.bulk-move') }}', {{ $f->id }}); open = false"
+                                class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm">
+                                {{ $f->path }}
+                            </button>
+                        @endforeach
+                    </div>
+                </div>
+                <button type="button" @click="selected = []" class="text-gray-400 hover:text-white text-xs">✕</button>
+            </div>
         </div>
     @endif
 
@@ -144,6 +206,42 @@
     @endif
 
     <script>
+    function bulkSelect() {
+        return {
+            selected: [],
+            get allSelected() {
+                const ids = Array.from(document.querySelectorAll('tbody input[type=checkbox]')).map(el => parseInt(el.value));
+                return ids.length > 0 && ids.every(id => this.selected.includes(id));
+            },
+            toggle(id) {
+                const idx = this.selected.indexOf(id);
+                if (idx === -1) this.selected.push(id);
+                else this.selected.splice(idx, 1);
+            },
+            toggleAll(checked) {
+                const ids = Array.from(document.querySelectorAll('tbody input[type=checkbox]')).map(el => parseInt(el.value));
+                this.selected = checked ? ids : [];
+            },
+            async bulkDelete(url) {
+                if (!confirm(`Delete ${this.selected.length} file(s)?`)) return;
+                const resp = await fetch(url, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content, 'Accept': 'application/json'},
+                    body: JSON.stringify({ids: this.selected}),
+                });
+                if (resp.ok) location.reload();
+            },
+            async bulkMove(url, folderId) {
+                const resp = await fetch(url, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content, 'Accept': 'application/json'},
+                    body: JSON.stringify({ids: this.selected, folder_id: folderId}),
+                });
+                if (resp.ok) location.reload();
+            },
+        };
+    }
+
     function promptRename(event, currentName) {
         const newName = prompt('Rename to:', currentName);
         if (!newName || newName === currentName) { event.preventDefault(); return false; }
@@ -194,8 +292,11 @@
                 try {
                     const data = JSON.parse(xhr.responseText);
                     label.textContent = data.uploaded.length + ' file(s) uploaded successfully.';
+                    if (data.errors && data.errors.length) {
+                        label.textContent += ' Duplicates: ' + data.errors.join(', ');
+                    }
                     bar.className = 'bg-green-500 h-2 rounded-full transition-all duration-200';
-                    setTimeout(() => location.reload(), 1000);
+                    setTimeout(() => location.reload(), 1500);
                 } catch(e) {
                     label.textContent = 'Server error. Check logs.';
                     bar.className = 'bg-red-500 h-2 rounded-full transition-all duration-200';
@@ -228,14 +329,30 @@
         uploadFiles(files, relativePaths);
     }
 
+    let draggingFolderId = null;
+
     function fileDragStart(event, fileId) {
         event.dataTransfer.setData('application/fileid', fileId);
         event.dataTransfer.effectAllowed = 'move';
         event.currentTarget.classList.add('opacity-40');
     }
 
+    function folderItemDragStart(event, folderId) {
+        draggingFolderId = folderId;
+        event.dataTransfer.setData('application/folderid', folderId);
+        event.dataTransfer.effectAllowed = 'move';
+        event.currentTarget.classList.add('opacity-40');
+    }
+
+    function folderItemDragEnd(event) {
+        event.currentTarget.classList.remove('opacity-40');
+        draggingFolderId = null;
+    }
+
     function folderDragOver(event) {
-        if (!event.dataTransfer.types.includes('application/fileid')) return;
+        const hasFile = event.dataTransfer.types.includes('application/fileid');
+        const hasFolder = event.dataTransfer.types.includes('application/folderid');
+        if (!hasFile && !hasFolder) return;
         event.preventDefault();
         event.dataTransfer.dropEffect = 'move';
         event.currentTarget.classList.add('ring-2', 'ring-blue-400', 'bg-blue-50');
@@ -245,20 +362,25 @@
         event.currentTarget.classList.remove('ring-2', 'ring-blue-400', 'bg-blue-50');
     }
 
-    function folderDrop(event, folderId) {
+    function anyDrop(event, targetFolderId) {
         event.preventDefault();
         event.currentTarget.classList.remove('ring-2', 'ring-blue-400', 'bg-blue-50');
         const fileId = event.dataTransfer.getData('application/fileid');
-        if (!fileId) return;
-        fetch(`/files/${fileId}/move`, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                'Accept': 'application/json',
-            },
-            body: JSON.stringify({ folder_id: folderId ?? null }),
-        }).then(r => { if (r.ok || r.redirected) location.reload(); });
+        const folderId = event.dataTransfer.getData('application/folderid');
+        const csrf = document.querySelector('meta[name="csrf-token"]').content;
+        if (fileId) {
+            fetch(`/files/${fileId}/move`, {
+                method: 'PATCH',
+                headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json'},
+                body: JSON.stringify({ folder_id: targetFolderId }),
+            }).then(r => { if (r.ok || r.redirected) location.reload(); });
+        } else if (folderId && folderId != targetFolderId) {
+            fetch(`/folders/${folderId}/move`, {
+                method: 'PATCH',
+                headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json'},
+                body: JSON.stringify({ parent_id: targetFolderId }),
+            }).then(r => { if (r.ok) location.reload(); });
+        }
     }
     </script>
 </x-app-layout>

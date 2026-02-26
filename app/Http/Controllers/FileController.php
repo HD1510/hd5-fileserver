@@ -38,9 +38,18 @@ class FileController extends Controller
 
         foreach ($request->file('files') as $index => $uploadedFile) {
             $size = $uploadedFile->getSize();
+            $originalName = $uploadedFile->getClientOriginalName();
 
             if (!$user->hasStorageAvailable($size)) {
-                $errors[] = $uploadedFile->getClientOriginalName() . ': Storage quota exceeded.';
+                $errors[] = $originalName . ': Storage quota exceeded.';
+                continue;
+            }
+
+            // Duplicate detection via MD5 hash
+            $hash = md5_file($uploadedFile->getRealPath());
+            $duplicate = $user->files()->where('hash', $hash)->first();
+            if ($duplicate) {
+                $errors[] = $originalName . ': Duplicate of \'' . $duplicate->name . '\'';
                 continue;
             }
 
@@ -64,12 +73,13 @@ class FileController extends Controller
 
             $file = $user->files()->create([
                 'folder_id' => $targetFolder?->id,
-                'name' => $uploadedFile->getClientOriginalName(),
+                'name' => $originalName,
                 'disk_name' => $diskName,
                 'disk_path' => $diskPath,
                 'mime_type' => $uploadedFile->getMimeType(),
                 'size' => $size,
                 'extension' => $ext ?: null,
+                'hash' => $hash,
             ]);
 
             $user->increment('storage_used', $size);
@@ -177,5 +187,50 @@ class FileController extends Controller
         $file->delete();
 
         return back()->with('success', 'File deleted.');
+    }
+
+    public function bulkDestroy(Request $request)
+    {
+        $data = $request->validate([
+            'ids' => ['required', 'array'],
+            'ids.*' => ['integer', 'exists:files,id'],
+        ]);
+
+        $user = $request->user();
+        $files = $user->files()->whereIn('id', $data['ids'])->get();
+
+        foreach ($files as $file) {
+            if (Storage::disk('uploads')->exists($file->disk_path)) {
+                Storage::disk('uploads')->delete($file->disk_path);
+            }
+            $user->storage_used = max(0, $user->storage_used - $file->size);
+            $file->delete();
+        }
+
+        $user->save();
+
+        return response()->json(['deleted' => $files->count()]);
+    }
+
+    public function bulkMove(Request $request)
+    {
+        $data = $request->validate([
+            'ids' => ['required', 'array'],
+            'ids.*' => ['integer', 'exists:files,id'],
+            'folder_id' => ['nullable', 'integer', 'exists:folders,id'],
+        ]);
+
+        $user = $request->user();
+
+        if (!empty($data['folder_id'])) {
+            $folder = Folder::findOrFail($data['folder_id']);
+            $this->authorize('view', $folder);
+        }
+
+        $user->files()
+            ->whereIn('id', $data['ids'])
+            ->update(['folder_id' => $data['folder_id'] ?? null]);
+
+        return response()->json(['moved' => count($data['ids'])]);
     }
 }

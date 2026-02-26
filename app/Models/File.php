@@ -20,6 +20,7 @@ class File extends Model
         'mime_type',
         'size',
         'extension',
+        'hash',
     ];
 
     protected function casts(): array

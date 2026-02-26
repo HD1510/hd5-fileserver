@@ -42,4 +42,13 @@ class FolderService
         }
         return rtrim($parent->path, '/') . '/' . $name;
     }
+
+    public function updatePathRecursive(Folder $folder): void
+    {
+        foreach ($folder->children as $child) {
+            $newPath = $this->buildPath($folder, $child->name);
+            $child->update(['path' => $newPath]);
+            $this->updatePathRecursive($child);
+        }
+    }
 }

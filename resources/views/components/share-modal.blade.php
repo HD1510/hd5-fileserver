@@ -1,6 +1,6 @@
 @props(['fileId' => null, 'folderId' => null, 'modalId' => 'share-modal'])
 
-<div x-data="{ open: false }" id="{{ $modalId }}">
+<div x-data="{ open: false, copied: false, showQr: false }" id="{{ $modalId }}">
     <button @click="open = true" type="button"
         class="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">

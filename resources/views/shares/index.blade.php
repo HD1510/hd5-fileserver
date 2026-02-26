@@ -19,6 +19,7 @@
                         <th class="px-4 py-3 font-medium">Item</th>
                         <th class="px-4 py-3 font-medium">Label</th>
                         <th class="px-4 py-3 font-medium hidden md:table-cell">Downloads</th>
+                        <th class="px-4 py-3 font-medium hidden lg:table-cell">Last Access</th>
                         <th class="px-4 py-3 font-medium hidden md:table-cell">Expires</th>
                         <th class="px-4 py-3 font-medium">Status</th>
                         <th class="px-4 py-3 font-medium text-right">Actions</th>
@@ -26,7 +27,7 @@
                 </thead>
                 <tbody class="divide-y divide-gray-50">
                     @foreach($shares as $share)
-                        <tr class="hover:bg-gray-50">
+                        <tr class="hover:bg-gray-50" x-data="{ copied: false, showQr: false }">
                             <td class="px-4 py-3">
                                 @if($share->file)
                                     <span class="text-gray-700">{{ $share->file->name }}</span>
@@ -38,7 +39,13 @@
                             </td>
                             <td class="px-4 py-3 text-gray-500">{{ $share->label ?? '—' }}</td>
                             <td class="px-4 py-3 text-gray-500 hidden md:table-cell">
-                                {{ $share->download_count }}{{ $share->max_downloads ? ' / ' . $share->max_downloads : '' }}
+                                <span class="font-medium">{{ $share->download_count }}</span>{{ $share->max_downloads ? ' / ' . $share->max_downloads : '' }}
+                                @if($share->download_count > 0)
+                                    <span class="text-gray-400 text-xs block">downloads</span>
+                                @endif
+                            </td>
+                            <td class="px-4 py-3 text-gray-500 hidden lg:table-cell text-xs">
+                                {{ $share->last_downloaded_at ? $share->last_downloaded_at->diffForHumans() : '—' }}
                             </td>
                             <td class="px-4 py-3 text-gray-500 hidden md:table-cell">
                                 {{ $share->expires_at?->format('Y-m-d H:i') ?? '—' }}
@@ -55,9 +62,34 @@
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-right">
-                                <div class="flex items-center justify-end gap-3">
+                                <div class="flex items-center justify-end gap-3 relative">
                                     <a href="{{ $share->publicUrl() }}" target="_blank" class="text-blue-600 hover:text-blue-800 text-xs">Open</a>
-                                    <button onclick="navigator.clipboard.writeText('{{ $share->publicUrl() }}')" class="text-xs text-gray-500 hover:text-gray-700">Copy</button>
+
+                                    {{-- Copy button with feedback --}}
+                                    <button type="button"
+                                        x-on:click="navigator.clipboard.writeText('{{ $share->publicUrl() }}').then(() => { copied = true; setTimeout(() => copied = false, 2000) })"
+                                        class="text-xs transition-colors"
+                                        :class="copied ? 'text-green-600 font-medium' : 'text-gray-500 hover:text-gray-700'">
+                                        <span x-show="!copied">Copy</span>
+                                        <span x-show="copied">Copied!</span>
+                                    </button>
+
+                                    {{-- QR Code button --}}
+                                    <div class="relative">
+                                        <button type="button"
+                                            @click="showQr = !showQr"
+                                            class="text-xs text-gray-500 hover:text-indigo-600">
+                                            QR
+                                        </button>
+                                        <div x-show="showQr" x-cloak @click.outside="showQr = false"
+                                            class="absolute right-0 bottom-full mb-2 z-50 bg-white border border-gray-200 rounded-xl shadow-lg p-3">
+                                            <div x-ref="qrContainer{{ $share->id }}"
+                                                x-init="$watch('showQr', v => { if(v) { $nextTick(() => { const el = $refs['qrContainer{{ $share->id }}']; el.innerHTML=''; new QRCode(el, {text: '{{ $share->publicUrl() }}', width: 160, height: 160}); }) } })">
+                                            </div>
+                                            <p class="text-xs text-gray-400 text-center mt-2 max-w-[160px] truncate">{{ $share->publicUrl() }}</p>
+                                        </div>
+                                    </div>
+
                                     <form method="POST" action="{{ route('shares.destroy', $share) }}" onsubmit="return confirm('Delete this share link?')">
                                         @csrf @method('DELETE')
                                         <button type="submit" class="text-xs text-red-500 hover:text-red-700">Delete</button>
@@ -71,4 +103,5 @@
         </div>
         <div class="mt-4">{{ $shares->links() }}</div>
     @endif
+
 </x-app-layout>

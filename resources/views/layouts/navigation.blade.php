@@ -28,6 +28,14 @@
                 </div>
             </div>
 
+            <!-- Search -->
+            <div class="hidden sm:flex sm:items-center">
+                <form method="GET" action="{{ route('search') }}" class="flex items-center">
+                    <input type="search" name="q" value="{{ request('q') }}" placeholder="Search files & folders…"
+                        class="w-48 lg:w-64 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:ring-blue-500 focus:border-blue-500 bg-gray-50">
+                </form>
+            </div>
+
             <!-- Settings Dropdown -->
             <div class="hidden sm:flex sm:items-center sm:ms-6">
                 <x-dropdown align="right" width="48">

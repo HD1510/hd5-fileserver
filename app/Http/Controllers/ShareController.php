@@ -154,6 +154,7 @@ class ShareController extends Controller
         }
 
         $share->increment('download_count');
+        $share->update(['last_downloaded_at' => now()]);
 
         return \Illuminate\Support\Facades\Storage::disk('uploads')->download($file->disk_path, $file->name);
     }

@@ -17,6 +17,7 @@ class Share extends Model
         'password_hash',
         'expires_at',
         'download_count',
+        'last_downloaded_at',
         'max_downloads',
         'is_active',
     ];
@@ -25,6 +26,7 @@ class Share extends Model
     {
         return [
             'expires_at' => 'datetime',
+            'last_downloaded_at' => 'datetime',
             'is_active' => 'boolean',
             'download_count' => 'integer',
             'max_downloads' => 'integer',

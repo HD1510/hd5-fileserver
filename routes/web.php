@@ -5,6 +5,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\FolderController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SearchController;
 use App\Http\Controllers\ShareController;
 use Illuminate\Support\Facades\Route;
 
@@ -21,6 +22,7 @@ Route::get('/s/{token}/download/{fileId?}', [ShareController::class, 'download']
 Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/search', [SearchController::class, 'index'])->name('search');
 
     // Profile (Breeze)
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -34,10 +36,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Folder management
     Route::post('/folders', [FolderController::class, 'store'])->name('folders.store');
     Route::patch('/folders/{folder}', [FolderController::class, 'update'])->name('folders.update');
+    Route::patch('/folders/{folder}/move', [FolderController::class, 'move'])->name('folders.move');
     Route::delete('/folders/{folder}', [FolderController::class, 'destroy'])->name('folders.destroy');
+    Route::get('/folders/{folder}/download', [FolderController::class, 'download'])->name('folders.download');
 
     // File management
     Route::post('/files/upload', [FileController::class, 'upload'])->name('files.upload');
+    Route::post('/files/bulk-delete', [FileController::class, 'bulkDestroy'])->name('files.bulk-delete');
+    Route::post('/files/bulk-move', [FileController::class, 'bulkMove'])->name('files.bulk-move');
     Route::get('/files/{file}/preview', [FileController::class, 'preview'])->name('files.preview');
     Route::get('/files/{file}/download', [FileController::class, 'download'])->name('files.download');
     Route::patch('/files/{file}', [FileController::class, 'update'])->name('files.update');
