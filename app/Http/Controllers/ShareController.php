@@ -127,7 +127,7 @@ class ShareController extends Controller
         return redirect()->route('shares.show', $token);
     }
 
-    public function download(string $token, ?int $fileId = null, Request $request)
+    public function download(Request $request, string $token, ?int $fileId = null)
     {
         $share = Share::where('token', $token)->with(['file', 'folder.files'])->firstOrFail();
 
