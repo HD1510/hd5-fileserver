@@ -79,6 +79,12 @@
 
     <!-- Responsive Navigation Menu -->
     <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden">
+        <div class="px-4 py-3">
+            <form method="GET" action="{{ route('search') }}">
+                <input type="search" name="q" value="{{ request('q') }}" placeholder="Search files & folders…"
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 focus:ring-blue-500 focus:border-blue-500">
+            </form>
+        </div>
         <div class="pt-2 pb-3 space-y-1">
             <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">Dashboard</x-responsive-nav-link>
             <x-responsive-nav-link :href="route('files.index')" :active="request()->routeIs('files.*')">Files</x-responsive-nav-link>
