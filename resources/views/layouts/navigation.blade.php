@@ -30,9 +30,12 @@
 
             <!-- Search -->
             <div class="hidden sm:flex sm:items-center">
-                <form method="GET" action="{{ route('search') }}" class="flex items-center">
-                    <input type="search" name="q" value="{{ request('q') }}" placeholder="Search files & folders…"
-                        class="w-48 lg:w-64 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:ring-blue-500 focus:border-blue-500 bg-gray-50">
+                <form method="GET" action="{{ route('search') }}" class="flex items-center relative">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 text-gray-400 absolute left-3 pointer-events-none">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 15.803a7.5 7.5 0 0 0 10.607 0Z" />
+                    </svg>
+                    <input type="search" name="q" value="{{ request('q') }}" placeholder="Search…"
+                        class="w-48 lg:w-64 border border-gray-300 rounded-lg pl-9 pr-3 py-1.5 text-sm focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm">
                 </form>
             </div>
 
