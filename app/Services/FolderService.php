@@ -25,7 +25,8 @@ class FolderService
             // Update user quota
             $user = $file->user;
             if ($user) {
-                $user->decrement('storage_used', $file->size);
+                $user->storage_used = max(0, $user->storage_used - $file->size);
+                $user->save();
             }
 
             $file->forceDelete();

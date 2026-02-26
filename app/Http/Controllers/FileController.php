@@ -172,7 +172,8 @@ class FileController extends Controller
             Storage::disk('uploads')->delete($file->disk_path);
         }
 
-        $file->user->decrement('storage_used', $file->size);
+        $file->user->storage_used = max(0, $file->user->storage_used - $file->size);
+        $file->user->save();
         $file->delete();
 
         return back()->with('success', 'File deleted.');
